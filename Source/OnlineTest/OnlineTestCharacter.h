@@ -3,7 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "OnlineSessionSettings.h"
+#include "OnlineSubsystem.h"
 #include "GameFramework/Character.h"
+#include "Interfaces/OnlineSessionDelegates.h"
+
 #include "Logging/LogMacros.h"
 #include "OnlineTestCharacter.generated.h"
 
@@ -79,4 +83,22 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void CallClientTravel(const FString& Address);
+
+public:
+	// pointer to the online session interface
+	IOnlineSessionPtr OnlineSessionInterface;
+
+protected:
+	UFUNCTION(BlueprintCallable)
+	void CreateGameSession();
+
+	UFUNCTION(BlueprintCallable)
+	void JoinGameSession();
+	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+	void OnFindSessionsComplete(bool bWasSuccessful);
+
+private:
+	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
+	FOnFindSessionsCompleteDelegate FindSessionCompleteDelegate;
+	TSharedPtr<FOnlineSessionSearch> SessionSearch;
 };

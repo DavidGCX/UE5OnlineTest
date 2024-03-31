@@ -11,13 +11,21 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "Kismet/GameplayStatics.h"
-
+#include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSessionSettings.h"
+#include "Online/OnlineSessionNames.h"
+#include "OnlineSubsystem.h"
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 //////////////////////////////////////////////////////////////////////////
 // AOnlineTestCharacter
 
-AOnlineTestCharacter::AOnlineTestCharacter() {
+AOnlineTestCharacter::AOnlineTestCharacter(): CreateSessionCompleteDelegate(
+	                                              FOnCreateSessionCompleteDelegate::CreateUObject(
+		                                              this, &ThisClass::OnCreateSessionComplete)),
+                                              FindSessionCompleteDelegate(
+	                                              FOnFindSessionsCompleteDelegate::CreateUObject(
+		                                              this, &ThisClass::OnFindSessionsComplete)) {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
@@ -53,7 +61,20 @@ AOnlineTestCharacter::AOnlineTestCharacter() {
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+
+	IOnlineSubsystem* OnlineSubsystem = IOnlineSubsystem::Get();
+	if (OnlineSubsystem != nullptr) {
+		OnlineSessionInterface = OnlineSubsystem->GetSessionInterface();
+
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green,
+			                                 FString::Printf(TEXT("OnlineSubsystem is valid %s"),
+			                                                 *OnlineSubsystem->GetSubsystemName().ToString())
+			);
+		}
+	}
 }
+
 
 void AOnlineTestCharacter::BeginPlay() {
 	// Call the base class  
@@ -84,6 +105,71 @@ void AOnlineTestCharacter::CallClientTravel(const FString& Address) {
 	APlayerController* playerController = GetGameInstance()->GetFirstLocalPlayerController();
 	if (playerController != nullptr) {
 		playerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+	}
+}
+
+void AOnlineTestCharacter::CreateGameSession() {
+	if (!OnlineSessionInterface.IsValid()) {
+		UE_LOG(LogTemplateCharacter, Error, TEXT("OnlineSessionInterface is not valid"));
+		return;
+	}
+	auto ExistingSession = OnlineSessionInterface->GetNamedSession(NAME_GameSession);
+	if (ExistingSession != nullptr) {
+		OnlineSessionInterface->DestroySession(NAME_GameSession);
+	}
+	OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
+	TSharedPtr<FOnlineSessionSettings> SessionSettings = MakeShareable(new FOnlineSessionSettings());
+	SessionSettings->bIsLANMatch = false;
+	SessionSettings->NumPublicConnections = 4;
+	SessionSettings->bAllowJoinInProgress = true;
+	SessionSettings->bAllowJoinViaPresence = true;
+	SessionSettings->bShouldAdvertise = true;
+	SessionSettings->bUsesPresence = true;
+	SessionSettings->bUseLobbiesIfAvailable = true;
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
+}
+
+void AOnlineTestCharacter::JoinGameSession() {
+	// Find gama session
+	if (!OnlineSessionInterface.IsValid()) {
+		UE_LOG(LogTemplateCharacter, Error, TEXT("OnlineSessionInterface is not valid"));
+		return;
+	}
+
+	OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionCompleteDelegate);
+
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	SessionSearch->MaxSearchResults = 100000;
+	SessionSearch->bIsLanQuery = false;
+	SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+}
+
+void AOnlineTestCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful) {
+	if (bWasSuccessful) {
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green,
+			                                 FString::Printf(
+				                                 TEXT("Successfully created session: %s"), *SessionName.ToString()));
+		}
+	} else {
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red,
+			                                 TEXT("Failed to create session"));
+		}
+	}
+}
+
+void AOnlineTestCharacter::OnFindSessionsComplete(bool bWasSuccessful) {
+	for (auto result : SessionSearch->SearchResults) {
+		FString Id = result.GetSessionIdStr();
+		FString Name = result.Session.OwningUserName;
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green,
+			                                 FString::Printf(TEXT("Found session ID:%s User:%s"), *Id, *Name));
+		}
 	}
 }
 
@@ -122,10 +208,10 @@ void AOnlineTestCharacter::Move(const FInputActionValue& Value) {
 		// get forward vector
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 
-		// get right vector 
+		// get right vector
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-		// add movement 
+		// add movement
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
