@@ -25,7 +25,10 @@ AOnlineTestCharacter::AOnlineTestCharacter(): CreateSessionCompleteDelegate(
 		                                              this, &ThisClass::OnCreateSessionComplete)),
                                               FindSessionCompleteDelegate(
 	                                              FOnFindSessionsCompleteDelegate::CreateUObject(
-		                                              this, &ThisClass::OnFindSessionsComplete)) {
+		                                              this, &ThisClass::OnFindSessionsComplete)),
+                                              JoinSessionCompleteDelegate(
+	                                              FOnJoinSessionCompleteDelegate::CreateUObject(
+		                                              this, &ThisClass::OnJoinSessionComplete)) {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
@@ -126,6 +129,8 @@ void AOnlineTestCharacter::CreateGameSession() {
 	SessionSettings->bShouldAdvertise = true;
 	SessionSettings->bUsesPresence = true;
 	SessionSettings->bUseLobbiesIfAvailable = true;
+	SessionSettings->Set(FName("MatchType"), FString("FreeForALl"),
+	                     EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
 }
@@ -154,6 +159,11 @@ void AOnlineTestCharacter::OnCreateSessionComplete(FName SessionName, bool bWasS
 			                                 FString::Printf(
 				                                 TEXT("Successfully created session: %s"), *SessionName.ToString()));
 		}
+		UWorld* World = GetWorld();
+		if (World != nullptr) {
+			FString Address = "/Game/ThirdPerson/Maps/Lobby?listen";
+			World->ServerTravel(Address);
+		}
 	} else {
 		if (GEngine) {
 			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red,
@@ -163,12 +173,47 @@ void AOnlineTestCharacter::OnCreateSessionComplete(FName SessionName, bool bWasS
 }
 
 void AOnlineTestCharacter::OnFindSessionsComplete(bool bWasSuccessful) {
+	if (!OnlineSessionInterface.IsValid()) {
+		UE_LOG(LogTemplateCharacter, Error, TEXT("OnlineSessionInterface is not valid"));
+		return;
+	}
 	for (auto result : SessionSearch->SearchResults) {
 		FString Id = result.GetSessionIdStr();
 		FString Name = result.Session.OwningUserName;
+		FString MatchType;
+		result.Session.SessionSettings.Get(FName("MatchType"), MatchType);
 		if (GEngine) {
 			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green,
 			                                 FString::Printf(TEXT("Found session ID:%s User:%s"), *Id, *Name));
+		}
+		if (MatchType == FString("FreeForAll")) {
+			if (GEngine) {
+				GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green,
+				                                 FString::Printf(TEXT("Join Match Type: %s"), *MatchType));
+			}
+			OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+			const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+			OnlineSessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, result);
+		}
+	}
+}
+
+void AOnlineTestCharacter::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result) {
+	if (!OnlineSessionInterface) {
+		UE_LOG(LogTemplateCharacter, Error, TEXT("OnlineSessionInterface is not valid"));
+		return;
+	}
+	FString Address;
+	if (OnlineSessionInterface->GetResolvedConnectString(NAME_GameSession, Address)) {
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Green,
+			                                 FString::Printf(TEXT("Joining session: %s"), *Address));
+		}
+		CallClientTravel(Address);
+	} else {
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red,
+			                                 TEXT("Failed to join session"));
 		}
 	}
 }
