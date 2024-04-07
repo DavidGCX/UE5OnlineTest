@@ -143,7 +143,6 @@ void AOnlineTestCharacter::JoinGameSession() {
 	}
 
 	OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionCompleteDelegate);
-
 	SessionSearch = MakeShareable(new FOnlineSessionSearch());
 	SessionSearch->MaxSearchResults = 100000;
 	SessionSearch->bIsLanQuery = false;
