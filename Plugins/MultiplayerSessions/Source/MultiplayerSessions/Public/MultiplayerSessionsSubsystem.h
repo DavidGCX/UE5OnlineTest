@@ -68,4 +68,8 @@ private:
 	FDelegateHandle OnDestroySessionCompleteDelegateHandle;
 	FOnStartSessionCompleteDelegate OnStartSessionCompleteDelegate;
 	FDelegateHandle OnStartSessionCompleteDelegateHandle;
+
+	bool bCreateSessionOnDestroy{false};
+	int LastNumberOfPublicConnections{4};
+	FString LastMatchType{"FreeForAll"};
 };

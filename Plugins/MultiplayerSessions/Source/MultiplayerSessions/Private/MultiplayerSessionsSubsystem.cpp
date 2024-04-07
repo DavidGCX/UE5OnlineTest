@@ -34,7 +34,11 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 		return;
 	}
 	if (auto ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession)) {
-		SessionInterface->DestroySession(NAME_GameSession);
+		bCreateSessionOnDestroy = true;
+		LastNumberOfPublicConnections = NumPublicConnections;
+		LastMatchType = MatchType;
+		DestroySession();
+		return;
 	}
 	OnCreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
 		OnCreateSessionCompleteDelegate);
@@ -98,7 +102,20 @@ void UMultiplayerSessionsSubsystem::JoinSession(const FOnlineSessionSearchResult
 	}
 }
 
-void UMultiplayerSessionsSubsystem::DestroySession() {}
+void UMultiplayerSessionsSubsystem::DestroySession() {
+	if (!SessionInterface.IsValid()) {
+		DestroySessionComplete.Broadcast(false);
+		UE_LOG(LogTemp, Error, TEXT("SessionInterface is not valid"));
+		return;
+	}
+	OnDestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+		OnDestroySessionCompleteDelegate);
+	if (!SessionInterface->DestroySession(NAME_GameSession)) {
+		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(OnDestroySessionCompleteDelegateHandle);
+		DestroySessionComplete.Broadcast(false);
+	}
+}
+
 void UMultiplayerSessionsSubsystem::StartSession() {}
 
 void UMultiplayerSessionsSubsystem::DebugPrintScreen(FString Message, FColor Color) {
@@ -142,5 +159,15 @@ OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Resu
 	}
 }
 
-void UMultiplayerSessionsSubsystem::OnDestroySessionComplete(FName SessionName, bool bWasSuccessful) {}
+void UMultiplayerSessionsSubsystem::OnDestroySessionComplete(FName SessionName, bool bWasSuccessful) {
+	if (SessionInterface) {
+		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(OnDestroySessionCompleteDelegateHandle);
+	}
+	if (bWasSuccessful && bCreateSessionOnDestroy) {
+		CreateSession(LastNumberOfPublicConnections, LastMatchType);
+		bCreateSessionOnDestroy = false;
+	}
+	DestroySessionComplete.Broadcast(bWasSuccessful);
+}
+
 void UMultiplayerSessionsSubsystem::OnStartSessionComplete(FName SessionName, bool bWasSuccessful) {}
