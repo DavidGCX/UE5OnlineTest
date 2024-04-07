@@ -66,7 +66,7 @@ void UMenu::OnCreateSessionComplete(bool bWasSuccessful) {
 }
 
 void UMenu::OnFindSessionsComplete(const TArray<FOnlineSessionSearchResult>& SearchResults, bool bWasSuccessful) {
-	if (!bWasSuccessful || MultiplayerSessionsSubsystem == nullptr || SearchResults.Num() == 0) {
+	if (!bWasSuccessful) {
 		DebugStatic::DebugPrintScreen("Failed to find sessions", FColor::Red);
 		return;
 	}
