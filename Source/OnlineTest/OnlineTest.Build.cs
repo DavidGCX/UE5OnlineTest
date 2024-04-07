@@ -10,6 +10,6 @@ public class OnlineTest : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core",
             "CoreUObject", "Engine", "InputCore", "EnhancedInput",
-            "OnlineSubsystemSteam", "OnlineSubsystem" });
+            "OnlineSubsystemSteam", "OnlineSubsystem", "MultiplayerSessions" });
 	}
 }

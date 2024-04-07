@@ -48,6 +48,7 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 	LastSessionSettings->bUseLobbiesIfAvailable = true;
 	LastSessionSettings->Set(FName("MatchType"), MatchType,
 	                         EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+	LastSessionSettings->BuildUniqueId = 1;
 	ULocalPlayer* Player = GetWorld()->GetFirstLocalPlayerFromController();
 	if (Player) {
 		if (!SessionInterface->CreateSession(*Player->GetPreferredUniqueNetId(), NAME_GameSession,
