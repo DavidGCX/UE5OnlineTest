@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineTestCharacter.h"
+
+#include "DebugStatic.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -87,6 +89,7 @@ void AOnlineTestCharacter::BeginPlay() {
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller)) {
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
 			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer())) {
+			DebugStatic::DebugPrintScreen("BeginPlay", FColor::Green);
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
