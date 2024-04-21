@@ -6,6 +6,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Camera/CameraComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 
 // Sets default values
@@ -21,6 +22,9 @@ ABlasterCharacter::ABlasterCharacter() {
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("Follow Camera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = true;
 }
 
 // Called when the game starts or when spawned

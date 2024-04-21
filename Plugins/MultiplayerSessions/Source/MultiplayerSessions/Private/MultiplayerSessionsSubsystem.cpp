@@ -116,7 +116,19 @@ void UMultiplayerSessionsSubsystem::DestroySession() {
 	}
 }
 
-void UMultiplayerSessionsSubsystem::StartSession() {}
+void UMultiplayerSessionsSubsystem::StartSession() {
+	if (!SessionInterface.IsValid()) {
+		DestroySessionComplete.Broadcast(false);
+		UE_LOG(LogTemp, Error, TEXT("SessionInterface is not valid"));
+		return;
+	}
+	OnStartSessionCompleteDelegateHandle = SessionInterface->AddOnStartSessionCompleteDelegate_Handle(
+		OnStartSessionCompleteDelegate);
+	if (!SessionInterface->StartSession(NAME_GameSession)) {
+		SessionInterface->ClearOnStartSessionCompleteDelegate_Handle(OnStartSessionCompleteDelegateHandle);
+		StartSessionComplete.Broadcast(false);
+	}
+}
 
 void UMultiplayerSessionsSubsystem::DebugPrintScreen(FString Message, FColor Color) {
 	if (GEngine) {
@@ -170,4 +182,9 @@ void UMultiplayerSessionsSubsystem::OnDestroySessionComplete(FName SessionName, 
 	DestroySessionComplete.Broadcast(bWasSuccessful);
 }
 
-void UMultiplayerSessionsSubsystem::OnStartSessionComplete(FName SessionName, bool bWasSuccessful) {}
+void UMultiplayerSessionsSubsystem::OnStartSessionComplete(FName SessionName, bool bWasSuccessful) {
+	if (SessionInterface) {
+		SessionInterface->ClearOnStartSessionCompleteDelegate_Handle(OnStartSessionCompleteDelegateHandle);
+	}
+	StartSessionComplete.Broadcast(bWasSuccessful);
+}
