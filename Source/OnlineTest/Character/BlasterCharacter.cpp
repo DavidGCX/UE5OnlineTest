@@ -16,7 +16,7 @@ ABlasterCharacter::ABlasterCharacter() {
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("Camera Boom"));
 	CameraBoom->SetupAttachment(GetMesh());
-	CameraBoom->TargetArmLength = 600.0f;
+	CameraBoom->TargetArmLength = 300.0f;
 	CameraBoom->bUsePawnControlRotation = true;
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("Follow Camera"));
