@@ -5,6 +5,7 @@
 
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Net/UnrealNetwork.h"
 #include "OnlineTest/OnlineTestCharacter.h"
 #include "OnlineTest/Character/BlasterCharacter.h"
 
@@ -58,8 +59,33 @@ void AWeapon::OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 	}
 }
 
+void AWeapon::OnRep_WeaponState(EWeaponState PreviousState) {
+	switch (WeaponState) {
+	case EWeaponState::EWS_Equipped:
+		ShowPickupWidget(false);
+		break;
+	case EWeaponState::EWS_Dropped:
+		break;
+	}
+}
+
+void AWeapon::SetWeaponState(EWeaponState State) {
+	WeaponState = State;
+	if (WeaponState == EWeaponState::EWS_Equipped) {
+		AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ShowPickupWidget(false);
+	} else if (WeaponState == EWeaponState::EWS_Dropped) {
+		AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+}
+
 void AWeapon::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
+}
+
+void AWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AWeapon, WeaponState);
 }
 
 void AWeapon::ShowPickupWidget(bool bShowWidget) {
